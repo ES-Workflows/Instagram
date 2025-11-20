@@ -7,7 +7,7 @@ import numpy as np
 SCRAPINGDOG_API_KEY = os.environ.get("SCRAPINGDOG_API_KEY")
 SUPABASE_URL        = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY        = os.environ.get("SUPABASE_KEY")
-BUCKET_NAME         = "marketing-database"   # ❌ no spaces!
+BUCKET_NAME         = "Marketing Database"   # ❌ no spaces!
 INSTAGRAM_USERNAME  = "extrastaff.recruitment"
 INSTAGRAM_USER_ID   = "75427613659"
 
