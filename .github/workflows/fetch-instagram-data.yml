@@ -2,86 +2,90 @@ name: Fetch Instagram Data
 
 on:
   schedule:
-    # Run every 4 hours
+    # Run every 4 hours (UTC)
     - cron: '0 */4 * * *'
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:   # Allow manual trigger
   push:
     branches: [ main ]
 
-# Add permissions for writing to repository
 permissions:
-  contents: write
+  contents: write   # Required to push to repo
 
 jobs:
   fetch-instagram-data:
     runs-on: ubuntu-latest
-    
+
     steps:
+    # 🧩 Step 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        # Add token to enable pushing back to repo
         token: ${{ secrets.GITHUB_TOKEN }}
-      
+
+    # 🐍 Step 2: Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-        
+
+    # 📦 Step 3: Install dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas requests numpy
-        
+        pip install pandas requests numpy supabase
+
+    # 🔍 Step 4: Display current repository state
     - name: Display current files in repo
       run: |
         echo "📁 Current files in repository:"
         ls -la
         echo "📊 Current CSV files:"
+        shopt -s nullglob
         for file in *.csv; do
-          if [ -f "$file" ]; then
-            echo "$file: $(wc -l < "$file") lines"
-          fi
+          echo "$file: $(wc -l < "$file") lines"
         done
-        
+
+    # ⚙️ Step 5: Run the data fetch script
     - name: Run Instagram data fetch script
       env:
         SCRAPINGDOG_API_KEY: ${{ secrets.SCRAPINGDOG_API_KEY }}
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       run: |
+        set -e  # Exit if any error occurs
+        echo "🚀 Running Instagram data fetch script..."
         python fetch_instagram_data.py
-        
+        echo "✅ Script execution completed."
+
+    # 🧾 Step 6: Verify updated files
     - name: Verify updated files
       run: |
         echo "📁 Files after script execution:"
-        ls -la *.csv
+        ls -la
         echo "📊 Updated CSV files:"
+        shopt -s nullglob
         for file in *.csv; do
-          if [ -f "$file" ]; then
-            echo "$file: $(wc -l < "$file") lines"
-          fi
+          echo "$file: $(wc -l < "$file") lines"
         done
-        
+
+    # 💾 Step 7: Commit and push updated data
     - name: Commit and push updated CSV files
       env:
-        # Use GITHUB_TOKEN for push access
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Add all CSV files that might have been updated
-        git add follower_history.csv daily_follower_summary.csv ig.csv instagram_posts_processed.csv
-        
-        # Check if there are changes to commit
-        if git diff --staged --quiet; then
-          echo "✅ No changes to commit - data is up to date"
+
+        # Add any CSVs in any folder (root or nested)
+        git add **/*.csv || echo "No CSV files to add."
+
+        # Check for new or modified content
+        if git diff --cached --quiet; then
+          echo "✅ No changes detected — everything up to date."
         else
-          echo "📝 Changes detected, committing..."
-          git status
+          echo "📝 Changes detected — committing updates..."
           git commit -m "🤖 Auto-update: Instagram data [$(date +'%Y-%m-%d %H:%M')]"
-          echo "🚀 Pushing changes to repository..."
-          git push
-          echo "✅ Successfully pushed updates to repo"
+          echo "🚀 Pushing changes to main branch..."
+          git push origin main
+          echo "✅ Successfully pushed updates to repository."
         fi
