@@ -2,7 +2,7 @@ name: Fetch Instagram Data
 
 on:
   schedule:
-    - cron: "0 */450 * * *"   # Every 4 hours UTC
+    - cron: "0 */4 * * *"   # Every 4 hours UTC
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -48,7 +48,7 @@ jobs:
           git add **/*.csv || echo "No CSV files found."
           if git diff --cached --quiet; then
             echo "✅ No new data."
-          else
+          else:
             git commit -m "🤖 Auto-update Instagram data [$(date +'%Y-%m-%d %H:%M')]"
             git push origin main
           fi
