@@ -11,7 +11,6 @@ SUPABASE_URL        = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY        = os.environ.get("SUPABASE_KEY")
 BUCKET_NAME         = "Marketing Database"
 INSTAGRAM_USERNAME  = "extrastaff.recruitment"
-CSV_FILE_PATH       = "followers_history.csv"
 
 # ----------- FETCH FOLLOWER COUNT -----------
 def get_instagram_followers(username):
