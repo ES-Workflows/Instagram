@@ -67,7 +67,6 @@ def save_follower_count(count):
     path = "follower_history.csv"
 
     # ✅ Correct timestamp formatting here
-    now = datetime.now()
     date_str = now.strftime("%d/%m/%Y")                 # clean date format for Power BI
     time_str = now.strftime("%H:%M:%S")                 # HH:MM:SS
 
