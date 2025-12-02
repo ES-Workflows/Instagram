@@ -19,7 +19,7 @@ logging.basicConfig(
 
 # ---------- SUPABASE UPLOAD ----------
 def upload_csv_to_supabase(path):
-    """PUTs CSV to Supabase Storage; overwrites if exists."""
+    """Uploads CSV to Supabase Storage; overwrites if exists."""
     name = os.path.basename(path)
     try:
         with open(path, "rb") as f:
@@ -65,11 +65,17 @@ def save_follower_count(count):
         return
 
     path = "follower_history.csv"
+
+    # ✅ Correct timestamp formatting here
     now = datetime.now()
+    timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")   # consistent readable timestamp
+    date_str = now.strftime("%d/%m/%Y")                 # clean date format for Power BI
+    time_str = now.strftime("%H:%M:%S")                 # HH:MM:SS
+
     row = {
-        "timestamp": now.isoformat(),
-        "date": now.date(),
-        "time": now.strftime("%H:%M:%S"),
+        "timestamp": timestamp_str,
+        "date": date_str,
+        "time": time_str,
         "followers_count": count,
         "username": INSTAGRAM_USERNAME
     }
@@ -82,13 +88,15 @@ def save_follower_count(count):
         else:
             df = df_new
 
-        # remove invalid rows (0 or NaN)
+        # remove invalid rows (0 or NaN followers)
         df = df[df["followers_count"] > 0].dropna(subset=["followers_count"])
 
         df.to_csv(path, index=False)
         logging.info(f"💾 Follower count saved: {count}")
+
         upload_csv_to_supabase(path)
         save_daily_summary(df)
+
     except Exception as e:
         logging.error(f"Error saving follower count: {e}")
 
