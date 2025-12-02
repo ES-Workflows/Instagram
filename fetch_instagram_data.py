@@ -72,7 +72,6 @@ def save_follower_count(count):
     time_str = now.strftime("%H:%M:%S")                 # HH:MM:SS
 
     row = {
-        "timestamp": timestamp_str,
         "date": date_str,
         "time": time_str,
         "followers_count": count,
