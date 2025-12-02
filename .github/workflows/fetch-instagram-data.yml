@@ -41,9 +41,15 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add followers_history.csv || echo "No CSV found."
-          if git diff --cached --quiet; then
-            echo "✅ No changes to commit."
+
+          if [ -f "followers_history.csv" ]; then
+            git add followers_history.csv
+            if git diff --cached --quiet; then
+              echo "✅ No changes to commit."
+            else
+              git commit -m "📈 Update followers data [$(date +'%Y-%m-%d %H:%M')]"
+              git push origin main
+            fi
           else
-            git commit -m "📈 Update followers data [$(date +'%Y-%m-%d %H:%M')]"
-            git push origin main
+            echo "⚠️ followers_history.csv not found. Skipping commit."
+          fi
