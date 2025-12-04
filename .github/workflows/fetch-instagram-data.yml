@@ -2,7 +2,7 @@ name: Fetch Instagram Data
 
 on:
   schedule:
-    - cron: "0 */4 * * *"   # Every 4 hours
+    - cron: "0 */450 * * *"   # Every 4 hours UTC
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -15,41 +15,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐍 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
-          pip install requests
+          python -m pip install --upgrade pip
+          pip install pandas requests numpy supabase
 
-      - name: 📊 Run Instagram data fetcher
+      - name: Run Instagram data fetcher
         env:
           SCRAPINGDOG_API_KEY: ${{ secrets.SCRAPINGDOG_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
+          set -e
           python fetch_instagram_data.py
 
-      - name: ✅ Commit and push updated CSV
+      - name: Commit and push updated CSVs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-
-          if [ -f "followers_history.csv" ]; then
-            git add followers_history.csv
-            if git diff --cached --quiet; then
-              echo "✅ No new data to commit."
-            else
-              git commit -m "📈 Update followers data [$(date +'%Y-%m-%d %H:%M')]"
-              git push origin main
-            fi
+          git add **/*.csv || echo "No CSV files found."
+          if git diff --cached --quiet; then
+            echo "✅ No new data."
           else
-            echo "⚠️ followers_history.csv not found. Skipping commit."
+            git commit -m "🤖 Auto-update Instagram data [$(date +'%Y-%m-%d %H:%M')]"
+            git push origin main
           fi
