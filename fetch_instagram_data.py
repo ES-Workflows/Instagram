@@ -99,89 +99,85 @@ def save_follower_count(followers_count):
         
         # Current timestamp
         current_time = datetime.now()
+        current_date = current_time.date()
         
-        # Create new row
+        # Create new row with ONLY the required columns
         new_row = {
-            'timestamp': current_time,
-            'date': current_time.date(),
-            'time': current_time.time(),
+            'date': current_date,
             'followers_count': followers_count,
             'username': INSTAGRAM_USERNAME
         }
         
-        logging.info(f"📝 New follower data: {followers_count} followers at {current_time}")
+        logging.info(f"📝 New follower data: {followers_count} followers on {current_date}")
         
-        # Check if file exists (it should, since it's in your repo)
+        # Check if file exists
         if os.path.exists(file_path):
             try:
-                # Read the existing CSV file from your repo
+                # Read the existing CSV file
                 existing_df = pd.read_csv(file_path)
                 logging.info(f"📁 Found existing file with {len(existing_df)} records")
                 
-                # Convert timestamp column if it exists and is string
-                if 'timestamp' in existing_df.columns and existing_df['timestamp'].dtype == 'object':
-                    existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+                # Convert date column if it exists and is string
+                if 'date' in existing_df.columns and existing_df['date'].dtype == 'object':
+                    existing_df['date'] = pd.to_datetime(existing_df['date']).dt.date
                 
                 # Create new dataframe for the new row
                 new_df = pd.DataFrame([new_row])
                 
-                # Append new row to existing data
-                updated_df = pd.concat([existing_df, new_df], ignore_index=True)
-                logging.info(f"🔄 Appended new record. Total records: {len(updated_df)}")
+                # Convert new_df date to datetime.date for consistency
+                new_df['date'] = pd.to_datetime(new_df['date']).dt.date
+                
+                # Check if we already have data for today
+                today_exists = False
+                if 'date' in existing_df.columns:
+                    # Check if today's date already exists in the data
+                    today_exists = current_date in existing_df['date'].values
+                
+                if today_exists:
+                    # Update today's record
+                    existing_df.loc[existing_df['date'] == current_date, 'followers_count'] = followers_count
+                    updated_df = existing_df
+                    logging.info(f"🔄 Updated today's record ({current_date}) with {followers_count} followers")
+                else:
+                    # Append new row to existing data
+                    updated_df = pd.concat([existing_df, new_df], ignore_index=True)
+                    logging.info(f"🔄 Added new record for {current_date}. Total records: {len(updated_df)}")
                 
             except Exception as e:
                 logging.error(f"❌ Error reading existing file: {e}")
                 # If reading fails, create new dataframe with current data
-                updated_df = pd.DataFrame([new_row])
+                new_df = pd.DataFrame([new_row])
+                new_df['date'] = pd.to_datetime(new_df['date']).dt.date
+                updated_df = new_df
         else:
-            # Create new file if it doesn't exist (shouldn't happen since it's in repo)
+            # Create new file if it doesn't exist
             updated_df = pd.DataFrame([new_row])
+            updated_df['date'] = pd.to_datetime(updated_df['date']).dt.date
             logging.warning("⚠️ File not found, creating new one")
         
-        # Save updated data back to the same CSV file in repo
+        # Ensure we only have the required columns in the correct order
+        required_columns = ['date', 'followers_count', 'username']
+        for col in required_columns:
+            if col not in updated_df.columns:
+                updated_df[col] = None if col != 'followers_count' else 0
+        
+        # Select only the required columns in the correct order
+        updated_df = updated_df[required_columns]
+        
+        # Sort by date (oldest first)
+        updated_df = updated_df.sort_values('date')
+        
+        # Save updated data back to the same CSV file
         updated_df.to_csv(file_path, index=False)
-        logging.info(f"💾 Successfully updated {file_path} with new follower count")
+        logging.info(f"💾 Successfully updated {file_path} with {len(updated_df)} records")
         
         # Upload the updated file to Supabase
         upload_csv_to_supabase(file_path, BUCKET_NAME)
         
-        # Also update daily summary
-        save_daily_summary(updated_df)
-        
-        logging.info(f"✅ Successfully saved follower count: {followers_count}")
+        logging.info(f"✅ Successfully saved follower count: {followers_count} followers on {current_date}")
         
     except Exception as e:
         logging.error(f"❌ Error saving follower count: {str(e)}")
-
-# ----------------------------
-# Save Daily Summary
-# ----------------------------
-def save_daily_summary(df):
-    try:
-        # Convert timestamp to datetime if it's string
-        if 'timestamp' in df.columns and df['timestamp'].dtype == 'object':
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # Group by date and get latest follower count for each day
-        daily_summary = df.groupby('date').agg({
-            'followers_count': 'last',
-            'timestamp': 'count'
-        }).rename(columns={'timestamp': 'records_count'}).reset_index()
-        
-        # Add username
-        daily_summary['username'] = INSTAGRAM_USERNAME
-        
-        # Save daily summary
-        daily_file_path = 'daily_follower_summary.csv'
-        daily_summary.to_csv(daily_file_path, index=False)
-        
-        # Upload daily summary to Supabase
-        upload_csv_to_supabase(daily_file_path, BUCKET_NAME)
-        
-        logging.info("✅ Daily summary saved and uploaded successfully")
-        
-    except Exception as e:
-        logging.error(f"❌ Error saving daily summary: {str(e)}")
 
 # ----------------------------
 # Fetch Instagram Posts (FROM YOUR WORKING CODE)
@@ -348,8 +344,8 @@ def load_follower_history():
         file_path = 'follower_history.csv'
         if os.path.exists(file_path):
             df = pd.read_csv(file_path)
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date']).dt.date
             return df
         else:
             return pd.DataFrame()
